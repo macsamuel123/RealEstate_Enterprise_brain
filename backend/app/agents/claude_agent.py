@@ -258,12 +258,30 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
             })
 
         elif tool_name == "request_approval":
-            # Create an approval request (stored server-side)
+            # Validate action-specific requirements
+            action = tool_input.get("action", "")
+            recipients = tool_input.get("recipients", "")
+
+            # For email sends, validate recipient against CRM and allowlist
+            if action == "gmail_send":
+                is_valid, error_msg = _validate_gmail_recipient(recipients)
+                if not is_valid:
+                    # Guard rule failed: tell Claude why and don't create approval
+                    return json.dumps({
+                        "status": "rejected",
+                        "error": error_msg,
+                        "action": action,
+                        "recipients": recipients
+                    })
+
+            # Create an approval request with UUID
+            approval_id = str(uuid.uuid4())
             return json.dumps({
                 "status": "pending_approval",
-                "action": tool_input.get("action"),
-                "recipients": tool_input.get("recipients"),
-                "approval_id": "approval_12345"
+                "action": action,
+                "recipients": recipients,
+                "approval_id": approval_id,
+                "payload": tool_input.get("payload", "")
             })
 
         else:
