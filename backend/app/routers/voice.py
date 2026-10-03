@@ -303,24 +303,34 @@ async def transcribe(
 async def agent(req: AgentRequest):
     """Process question through agent orchestrator."""
     try:
+        logger.info(f"[DEBUG] Received question: '{req.question}'")
+
         if not req.question.strip():
             raise HTTPException(400, "Question cannot be empty")
 
         # For dev: use mock org/user IDs
         org_id = "org_getty_group"
         user_id = "user_shawn_getty"
+        logger.info(f"[DEBUG] Using org_id={org_id}, user_id={user_id}")
 
         # Route through orchestrator
         orchestrator = AgentOrchestrator(org_id=org_id, user_id=user_id)
+        logger.info(f"[DEBUG] Calling orchestrator.dispatch_to_agent with message: {req.question}")
+
         response = await orchestrator.dispatch_to_agent(
             event_type="user_message",
             event_data={"message": req.question}
         )
 
-        return {"response": response.get("response", "I'm not sure how to help with that.")}
+        logger.info(f"[DEBUG] Orchestrator response: {response}")
+
+        agent_response = response.get("response", "I'm not sure how to help with that.")
+        logger.info(f"[DEBUG] Final agent response: '{agent_response}'")
+
+        return {"response": agent_response}
 
     except Exception as e:
-        logger.error(f"Agent error: {e}", exc_info=True)
+        logger.error(f"[ERROR] Agent error: {e}", exc_info=True)
         raise HTTPException(500, str(e))
 
 

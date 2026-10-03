@@ -2,7 +2,10 @@
 from openai import OpenAI
 from typing import Optional
 import json
+import logging
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Use DeepSeek for testing (cheaper than Anthropic)
 client = OpenAI(
@@ -43,30 +46,38 @@ class ConversationalAgent:
         Have a conversation with DeepSeek.
         Returns: Spoken response text
         """
+        logger.info(f"[DEBUG] ConversationalAgent.chat() called with: '{user_message}'")
 
         # Add user message to history
         self.conversation_history.append({
             "role": "user",
             "content": user_message
         })
+        logger.info(f"[DEBUG] Calling DeepSeek with {len(self.conversation_history)} messages in history")
 
-        # Call DeepSeek via OpenAI format (simple, no tools for now)
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            max_tokens=500,
-            messages=self.conversation_history,
-        )
+        try:
+            # Call DeepSeek via OpenAI format (simple, no tools for now)
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                max_tokens=500,
+                messages=self.conversation_history,
+            )
+            logger.info(f"[DEBUG] DeepSeek API response received")
 
-        # Get response text from DeepSeek
-        assistant_message = response.choices[0].message.content
+            # Get response text from DeepSeek
+            assistant_message = response.choices[0].message.content
+            logger.info(f"[DEBUG] DeepSeek response text: '{assistant_message}'")
 
-        # Add assistant response to history
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": assistant_message
-        })
+            # Add assistant response to history
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": assistant_message
+            })
 
-        return assistant_message
+            return assistant_message
+        except Exception as e:
+            logger.error(f"[ERROR] DeepSeek API call failed: {e}", exc_info=True)
+            raise
 
     async def _execute_tool(self, tool_name: str, tool_input: dict) -> str:
         """Execute a tool and return result"""
