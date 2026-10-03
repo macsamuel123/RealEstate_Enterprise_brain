@@ -179,3 +179,94 @@
   line-height: 1.5;
   margin: 0;
 }
+
+.approval-card {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #12182a;
+  border: 2px solid #ffa500;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(255, 165, 0, 0.15);
+}
+
+.approval-header {
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 165, 0, 0.3);
+  padding-bottom: 12px;
+}
+
+.approval-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffa500;
+  margin: 0;
+}
+
+.approval-details {
+  margin-bottom: 16px;
+}
+
+.approval-details p {
+  font-size: 13px;
+  color: #a0aab8;
+  margin: 8px 0;
+}
+
+.approval-details strong {
+  color: #e0e6ed;
+  font-weight: 600;
+}
+
+.approval-body {
+  padding: 12px;
+  background: rgba(255, 165, 0, 0.05);
+  border-left: 2px solid #ffa500;
+  margin-top: 12px;
+  border-radius: 4px;
+}
+
+.approval-body p {
+  margin: 4px 0;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.btn-approve,
+.btn-deny {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-approve {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-approve:hover {
+  background: #229954;
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-deny {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-deny:hover {
+  background: #c0392b;
+  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+}

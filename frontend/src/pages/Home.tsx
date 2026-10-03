@@ -15,6 +15,8 @@ export const Home = () => {
   const [lastQuestion, setLastQuestion] = useState<string>('');
   const [transcript, setTranscript] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [conversationId, setConversationId] = useState<string>('');
+  const [pendingApproval, setPendingApproval] = useState<any>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,11 +39,10 @@ export const Home = () => {
       // Start listening
       setRingState('listening');
       setError('');
-      setLastQuestion('');
+      setPendingApproval(null);
 
       try {
-        // For testing: use hardcoded question instead of voice recording
-        const question = "What should I focus on today?";
+        const question = await recordAndTranscribe();
         setLastQuestion(question);
 
         // Send to agent for processing
@@ -64,7 +65,10 @@ export const Home = () => {
       const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question,
+          conversation_id: conversationId
+        }),
       });
 
       if (!res.ok) {
@@ -73,6 +77,17 @@ export const Home = () => {
 
       const data = await res.json();
       const answer = data.response || data.answer;
+
+      // Store conversation ID from first response
+      if (!conversationId && data.conversation_id) {
+        setConversationId(data.conversation_id);
+      }
+
+      // Check for pending approval
+      if (data.pending_approval) {
+        setPendingApproval(data.pending_approval);
+        console.log('Pending approval:', data.pending_approval);
+      }
 
       // Speak the answer (will fail without ElevenLabs key, but shows response text)
       try {
@@ -83,6 +98,58 @@ export const Home = () => {
     } catch (err) {
       console.error('Agent error:', err);
       setError(err instanceof Error ? err.message : 'Failed to get answer');
+    } finally {
+      setRingState('idle');
+    }
+  };
+
+  const handleApproveAction = async (approvalId: string) => {
+    try {
+      setRingState('speaking');
+      const res = await fetch(`/api/approvals/${approvalId}/approve`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to approve action');
+      }
+
+      const data = await res.json();
+      setPendingApproval(null);
+      console.log('Action approved:', data);
+
+      try {
+        await speak('Action approved and executed');
+      } catch (ttsErr) {
+        console.log('TTS failed, but action was approved');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve action');
+    } finally {
+      setRingState('idle');
+    }
+  };
+
+  const handleDenyAction = async (approvalId: string) => {
+    try {
+      setRingState('speaking');
+      const res = await fetch(`/api/approvals/${approvalId}/deny`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to deny action');
+      }
+
+      setPendingApproval(null);
+
+      try {
+        await speak('Action cancelled');
+      } catch (ttsErr) {
+        console.log('TTS failed, but action was cancelled');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to deny action');
     } finally {
       setRingState('idle');
     }
@@ -111,6 +178,37 @@ export const Home = () => {
           isProcessing={ringState === 'speaking'}
           error={error}
         />
+
+        {pendingApproval && (
+          <div className="approval-card">
+            <div className="approval-header">
+              <h3>Action Requires Approval</h3>
+            </div>
+            <div className="approval-details">
+              <p><strong>Action:</strong> {pendingApproval.action}</p>
+              <p><strong>To:</strong> {pendingApproval.to}</p>
+              <p><strong>Subject:</strong> {pendingApproval.subject}</p>
+              <div className="approval-body">
+                <p><strong>Message:</strong></p>
+                <p>{pendingApproval.body}</p>
+              </div>
+            </div>
+            <div className="approval-actions">
+              <button
+                onClick={() => handleApproveAction(pendingApproval.approval_id)}
+                className="btn-approve"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => handleDenyAction(pendingApproval.approval_id)}
+                className="btn-deny"
+              >
+                Deny
+              </button>
+            </div>
+          </div>
+        )}
 
         {!loading && metrics && (
           <div className="metrics-grid">
