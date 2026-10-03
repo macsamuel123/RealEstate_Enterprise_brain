@@ -3,7 +3,7 @@ import json
 import logging
 from typing import Optional
 from anthropic import AsyncAnthropic
-from app.config import settings
+from app.config import settings, MODEL_TIERS
 
 logger = logging.getLogger(__name__)
 
@@ -260,9 +260,9 @@ async def chat(user_message: str, conversation_history: list, org_id: str, user_
         step += 1
         logger.info(f"[CLAUDE] Step {step}/{max_steps}")
 
-        # Call Claude
+        # Call Claude (standard tier for balanced performance/cost)
         response = await client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+            model=MODEL_TIERS["standard"],
             max_tokens=1024,
             system=SYSTEM_PROMPT,
             tools=TOOLS,

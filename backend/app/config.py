@@ -1,6 +1,13 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 
+# Model tier mappings (update here, never hardcode elsewhere)
+MODEL_TIERS = {
+    "fast": "claude-haiku-4-5-20251001",
+    "standard": "claude-sonnet-5-5",
+    "deep": "claude-opus-5-5"
+}
+
 class Settings(BaseSettings):
     """Application settings from environment variables."""
 
