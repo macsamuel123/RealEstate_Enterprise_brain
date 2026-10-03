@@ -8,18 +8,31 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Supabase client (for direct access)
-supabase: Client = create_client(
-    settings.supabase_url,
-    settings.supabase_anon_key
-)
+# Lazy Supabase client (only initialize if settings are provided)
+_supabase_client: Client = None
 
 def get_supabase() -> Client:
-    """Get Supabase client."""
-    return supabase
+    """Get Supabase client (lazy initialization)."""
+    global _supabase_client
+
+    if not settings.supabase_url or not settings.supabase_anon_key:
+        logger.warning("Supabase credentials not configured. Database operations will fail.")
+        return None
+
+    if _supabase_client is None:
+        _supabase_client = create_client(
+            settings.supabase_url,
+            settings.supabase_anon_key
+        )
+
+    return _supabase_client
 
 def get_supabase_service_role() -> Client:
     """Get Supabase client with service role (admin) access."""
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        logger.warning("Supabase credentials not configured. Database operations will fail.")
+        return None
+
     return create_client(
         settings.supabase_url,
         settings.supabase_service_role_key

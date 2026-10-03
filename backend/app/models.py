@@ -22,12 +22,15 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 class AgentRole(str, Enum):
+    ORCHESTRATOR = "orchestrator"
+    MEMORY_SCRIBE = "memory_scribe"
     RESEARCH = "research"
     LEAD_QUALIFICATION = "lead_qualification"
     CONTENT = "content"
     COMMUNICATIONS = "communications"
     OPERATIONAL_HEARTBEAT = "operational_heartbeat"
     CONCIERGE = "concierge"
+    AGENT_BUILDER = "agent_builder"
     CUSTOM = "custom"
 
 class ConversationChannel(str, Enum):
@@ -99,15 +102,15 @@ class Profile(SQLModel, table=True):
     market_description: Optional[str] = None
 
     primary_market: Optional[str] = None  # e.g. "Calgary AB"
-    competitors: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
-    market_focus: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    competitors: Optional[dict] = Field(default=None, sa_type=JSON)
+    market_focus: Optional[dict] = Field(default=None, sa_type=JSON)
 
     working_hours_start: Optional[time] = None
     working_hours_end: Optional[time] = None
     timezone: str = "America/Denver"
 
     communication_style: Optional[str] = None
-    personal_interests: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    personal_interests: Optional[dict] = Field(default=None, sa_type=JSON)
 
     morning_ritual: Optional[str] = None
     morning_ritual_duration_minutes: int = 15
@@ -136,7 +139,7 @@ class Agent(SQLModel, table=True):
     temperature: float = 0.7
     max_tokens: int = 2000
 
-    permitted_tools: List[str] = Field(default=[], sa_column_kwargs={"type": JSON})
+    permitted_tools: Optional[dict] = Field(default=None, sa_type=JSON)
     requires_approval: bool = True
 
     should_run_on_schedule: bool = False
@@ -161,7 +164,7 @@ class Conversation(SQLModel, table=True):
     channel: ConversationChannel = ConversationChannel.CHAT
     title: Optional[str] = None
 
-    participants: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    participants: Optional[dict] = Field(default=None, sa_type=JSON)
 
     started_at: datetime = Field(default_factory=datetime.utcnow)
     ended_at: Optional[datetime] = None
@@ -178,8 +181,8 @@ class Message(SQLModel, table=True):
     role: MessageRole
     content: str
 
-    embedding: Optional[List[float]] = None  # vector(1536)
-    metadata: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    embedding: Optional[dict] = Field(default=None, sa_type=JSON)  # vector(1536)
+    message_metadata: Optional[dict] = Field(default=None, sa_type=JSON)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -199,8 +202,8 @@ class Contact(SQLModel, table=True):
     relationship_type: Optional[str] = None  # lead, client, prospect, agent
     last_contacted_at: Optional[datetime] = None
 
-    embedding: Optional[List[float]] = None
-    metadata: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    embedding: Optional[dict] = Field(default=None, sa_type=JSON)
+    contact_metadata: Optional[dict] = Field(default=None, sa_type=JSON)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -259,7 +262,7 @@ class Memory(SQLModel, table=True):
     source: Optional[str] = None
     source_id: Optional[UUID] = None
 
-    embedding: Optional[List[float]] = None
+    embedding: Optional[dict] = Field(default=None, sa_type=JSON)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -277,7 +280,7 @@ class Document(SQLModel, table=True):
     file_size: Optional[int] = None
 
     content: Optional[str] = None
-    chunks: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    chunks: Optional[dict] = Field(default=None, sa_type=JSON)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -312,8 +315,8 @@ class ActionsLog(SQLModel, table=True):
     action_type: ActionType
     tool_name: Optional[str] = None
 
-    input_data: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
-    output_data: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    input_data: Optional[dict] = Field(default=None, sa_type=JSON)
+    output_data: Optional[dict] = Field(default=None, sa_type=JSON)
 
     approval_required: bool = False
     approval_status: Optional[ApprovalStatus] = None
@@ -323,7 +326,7 @@ class ActionsLog(SQLModel, table=True):
     status: str = "success"  # success, error, pending
     error_message: Optional[str] = None
 
-    metadata: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    action_metadata: Optional[dict] = Field(default=None, sa_type=JSON)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -350,7 +353,7 @@ class Brief(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="user.id")
 
     brief_date: date
-    content: Optional[dict] = Field(default=None, sa_column_kwargs={"type": JSON})
+    content: Optional[dict] = Field(default=None, sa_type=JSON)
 
     delivered_at: Optional[datetime] = None
     delivery_channel: Optional[str] = None

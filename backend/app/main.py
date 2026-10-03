@@ -8,6 +8,7 @@ from datetime import datetime
 from app.config import settings
 from app.database import init_db, get_session
 from app.auth.middleware import verify_token_middleware
+from app.routers import voice
 
 # Configure logging
 logging.basicConfig(level=settings.log_level.upper())
@@ -82,14 +83,9 @@ async def root():
     }
 
 # ============================================================================
-# ROUTERS (to be added)
+# ROUTERS
 # ============================================================================
-# TODO: Import and include routers:
-# from app.routers import auth, briefs, agents, conversations, tools, contacts, deals
-# app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-# app.include_router(briefs.router, prefix="/api/briefs", tags=["briefs"])
-# app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
-# ... etc
+app.include_router(voice.router)
 
 # ============================================================================
 # ERROR HANDLERS

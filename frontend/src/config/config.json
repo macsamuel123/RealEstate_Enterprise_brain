@@ -1,0 +1,130 @@
+{
+  "dashboard": {
+    "title": "⚡ Chief of Staff",
+    "subtitle": "Calgary Operations — Shawn Getty",
+    "showScanLine": true,
+    "statusText": "System Online"
+  },
+  "theme": {
+    "bg": "#0B0E14",
+    "panelBg": "#121824",
+    "panelBorder": "rgba(0, 240, 255, 0.2)",
+    "hoverBg": "#1a1f3a",
+    "accent": "#00F0FF",
+    "accentDim": "rgba(0, 240, 255, 0.3)",
+    "accentFaint": "rgba(0, 240, 255, 0.08)",
+    "purple": "#8A2BE2",
+    "green": "#00FF87",
+    "red": "#FF2E63",
+    "orange": "#FFB800",
+    "gold": "#f6d365",
+    "text": "#E0E0E0",
+    "textMuted": "#6b7b8d",
+    "textDim": "#3a4553"
+  },
+  "api": {
+    "base_url": "http://localhost:8000",
+    "websocket_url": "ws://localhost:8000"
+  },
+  "projects": {
+    "mode": "manual",
+    "tracked": [
+      {
+        "dir": "RealEstate_Enterprise_brain",
+        "label": "AI Chief of Staff"
+      }
+    ]
+  },
+  "layout": [
+    { "type": "header" },
+    { "type": "jarvis-voice-command" },
+    {
+      "type": "row",
+      "columns": 3,
+      "widgets": [
+        "operational-heartbeat",
+        "agent-squad",
+        "approval-queue"
+      ]
+    },
+    { "type": "recent-activity" },
+    { "type": "footer" }
+  ],
+  "widgets": {
+    "jarvisVoiceCommand": {
+      "voice": {
+        "enabled": true,
+        "tts": {
+          "engine": "browser",
+          "lang": "en-US"
+        },
+        "stt": {
+          "enabled": true
+        }
+      },
+      "personality": {
+        "name": "Chief of Staff",
+        "role": "An intelligent business operations partner",
+        "tone": "professional, decisive, proactive"
+      }
+    },
+    "operationalHeartbeat": {
+      "refreshInterval": 5000,
+      "metrics": [
+        "system_integrity",
+        "lead_response_time",
+        "pipeline_value",
+        "anomaly_count"
+      ]
+    },
+    "agentSquad": {
+      "refreshInterval": 3000,
+      "agents": [
+        {
+          "id": "research",
+          "name": "Research Agent",
+          "role": "Market Intelligence",
+          "color": "#00F0FF"
+        },
+        {
+          "id": "lead_qualification",
+          "name": "Lead Qualifier",
+          "role": "Inbound Processing",
+          "color": "#00FF87"
+        },
+        {
+          "id": "content",
+          "name": "Content Creator",
+          "role": "Blog & Social",
+          "color": "#8A2BE2"
+        },
+        {
+          "id": "communications",
+          "name": "Communications",
+          "role": "Calls & Email",
+          "color": "#00D4FF"
+        },
+        {
+          "id": "operational_heartbeat",
+          "name": "Op. Heartbeat",
+          "role": "Health Monitor",
+          "color": "#FFB800"
+        },
+        {
+          "id": "concierge",
+          "name": "Concierge",
+          "role": "Personal Assistant",
+          "color": "#FF6B9D"
+        }
+      ]
+    },
+    "approvalQueue": {
+      "refreshInterval": 2000,
+      "maxDisplayed": 5
+    },
+    "recentActivity": {
+      "count": 8,
+      "excludePatterns": ["/(cache|temp)/"]
+    }
+  }
+}

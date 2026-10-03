@@ -1,0 +1,40 @@
+.ring-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s ease;
+}
+
+.ring-container:hover {
+  transform: scale(1.02);
+}
+
+.ring-canvas {
+  display: block;
+  filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3));
+}
+
+.ring-idle .ring-canvas {
+  filter: drop-shadow(0 0 15px rgba(0, 212, 255, 0.2));
+}
+
+.ring-listening .ring-canvas {
+  filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.5));
+}
+
+.ring-speaking .ring-canvas {
+  filter: drop-shadow(0 0 40px rgba(0, 212, 255, 0.6));
+}
+
+.ring-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 212, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+}

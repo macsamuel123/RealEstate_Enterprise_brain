@@ -1,0 +1,225 @@
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: #0a0a1a;
+  min-height: 100vh;
+  color: #e0e6ed;
+}
+
+.page-header {
+  padding-top: 8px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #e0e6ed;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #6b7b8d;
+  margin: 8px 0 0 0;
+}
+
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background: #0d1117;
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 8px;
+}
+
+.stat-box:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7b8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00d4ff;
+}
+
+.stat-detail {
+  font-size: 12px;
+  color: #6b7b8d;
+}
+
+.deals-section,
+.agents-section,
+.approvals-section {
+  width: 100%;
+}
+
+.deals-section h2,
+.agents-section h2,
+.approvals-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0e6ed;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.deals-list,
+.agents-list,
+.approvals-list {
+  display: grid;
+  gap: 12px;
+}
+
+.deal-card,
+.agent-card,
+.approval-card {
+  padding: 16px;
+  background: #0d1117;
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.deal-card:hover,
+.agent-card:hover,
+.approval-card:hover {
+  background: #12182a;
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.deal-card h3,
+.agent-card h3,
+.approval-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e6ed;
+  margin: 0 0 8px 0;
+}
+
+.deal-address,
+.agent-role,
+.approval-preview {
+  font-size: 12px;
+  color: #a0aab8;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.deal-status-badge,
+.agent-status-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.deal-card.status-new .deal-status-badge,
+.agent-card.status-active .agent-status-badge {
+  background: rgba(68, 201, 143, 0.2);
+  color: #44c98f;
+}
+
+.deal-card.status-active .deal-status-badge {
+  background: rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+}
+
+.deal-card.status-closed .deal-status-badge {
+  background: rgba(107, 123, 141, 0.2);
+  color: #6b7b8d;
+}
+
+.agent-card.status-idle .agent-status-badge {
+  background: rgba(107, 123, 141, 0.2);
+  color: #6b7b8d;
+}
+
+.agent-card.status-error .agent-status-badge {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.deal-footer,
+.agent-footer,
+.approval-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #6b7b8d;
+}
+
+.deal-value,
+.agent-updated {
+  font-weight: 600;
+  color: #00d4ff;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.approval-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.approval-btn-approve {
+  background: rgba(68, 201, 143, 0.2);
+  color: #44c98f;
+  border-color: #44c98f;
+}
+
+.approval-btn-approve:hover {
+  background: rgba(68, 201, 143, 0.3);
+}
+
+.approval-btn-deny {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.approval-btn-deny:hover {
+  background: rgba(231, 76, 60, 0.3);
+}
+
+.approval-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

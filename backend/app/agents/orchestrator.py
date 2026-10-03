@@ -42,19 +42,38 @@ class AgentOrchestrator:
     ) -> Dict[str, Any]:
         """
         Dispatch an event to the appropriate agent.
+        For user messages, use conversational agent (Claude decides what to do).
         Returns the agent's response.
         """
 
-        # Route event to agent(s)
+        # For conversational user messages, use the conversational agent
+        if event_type == "user_message":
+            from app.agents.conversational import ConversationalAgent
+
+            agent = ConversationalAgent(org_id=str(self.org_id), user_id=str(self.user_id))
+            message = event_data.get("message", "")
+
+            try:
+                response = await agent.chat(message)
+                return {
+                    "status": "success",
+                    "response": response,
+                    "conversation_id": str(conversation_id) if conversation_id else None
+                }
+            except Exception as e:
+                logger.error(f"Conversational agent error: {e}")
+                return {
+                    "status": "error",
+                    "error": str(e)
+                }
+
+        # Route other event types to specific agents
         if event_type == "inbound_lead":
             agent_role = "lead_qualification"
         elif event_type == "scheduled_brief":
             agent_role = "research"
         elif event_type == "content_request":
             agent_role = "content"
-        elif event_type == "user_message":
-            # Determine agent from conversation or message intent
-            agent_role = await self._detect_intent(event_data.get("message", ""))
         else:
             agent_role = "research"  # Default
 
@@ -154,9 +173,20 @@ class AgentOrchestrator:
 
     async def _detect_intent(self, message: str) -> str:
         """Detect user intent from message."""
-        # TODO: Use simple keyword matching or LLM to detect intent
-        # For now, default to chat/research
-        return "research"
+        from app.agents.intent import detect_intent
+
+        intent, _ = detect_intent(message)
+
+        intent_to_role = {
+            "brief_me": "orchestrator_brief",
+            "who_am_i_meeting": "orchestrator_calendar",
+            "follow_up_recruits": "communications",
+            "book_coffee": "orchestrator_calendar",
+            "what_needs_attention": "orchestrator_heartbeat",
+            "unclear": "orchestrator",
+        }
+
+        return intent_to_role.get(intent.value, "research")
 
     async def _log_action(
         self,
@@ -184,98 +214,200 @@ class AgentOrchestrator:
         }).execute()
 
 async def create_default_agents(org_id: UUID):
-    """Create default set of agents for a new organization."""
+    """Create all 8 standard agents for a new organization."""
     supabase = get_supabase()
 
     default_agents = [
         {
             "org_id": str(org_id),
-            "name": "Research Agent",
-            "role": "research",
-            "description": "Researches market trends, competitor activity, and macro news",
-            "system_prompt": """You are a research agent for a real estate business. Your job is to:
-1. Monitor market trends and competitor activity
-2. Track relevant news and policy changes
-3. Synthesize information into actionable insights
-4. Report findings proactively
+            "name": "Orchestrator (Chief of Staff)",
+            "role": "orchestrator",
+            "description": "The single persona Shawn talks to. Routes tasks, clarifies intent, synthesizes results, runs onboarding and evening check-in",
+            "system_prompt": """You are the Orchestrator — Shawn's Chief of Staff AI. Your role is to:
+1. Listen to Shawn's requests and understand intent
+2. Route tasks to the right specialist agent or handle directly
+3. Ask clarifying questions when needed (CRM data, context, preferences)
+4. Synthesize results from multiple agents into clear summaries
+5. Run onboarding flows and evening check-ins
 
-Be concise and fact-based. Always cite sources.""",
-            "permitted_tools": ["web_search", "news_fetch", "calendar_read"],
+Use a professional, concise tone. Always ask for clarification if intent is ambiguous.
+Never send emails or make changes without explicit approval.""",
+            "model": "claude-haiku-4-5-20251001",
+            "temperature": 0.5,
+            "max_tokens": 1000,
+            "permitted_tools": ["agent_dispatch", "memory_recall"],
+            "requires_approval": False,
+            "is_system_provided": True,
+            "metadata": {
+                "model_for_routing": "claude-haiku-4-5-20251001",
+                "model_for_synthesis": "claude-sonnet-5",
+                "note": "Routing (classification) uses Haiku; synthesis (multi-agent results) uses Sonnet. High-volume agent."
+            }
+        },
+        {
+            "org_id": str(org_id),
+            "name": "Memory Scribe",
+            "role": "memory_scribe",
+            "description": "Extracts facts, decisions, and commitments from conversations. Maintains contact dossiers and pre-call briefings",
+            "system_prompt": """You are the Memory Scribe. After each conversation, your job is to:
+1. Extract factual information (dates, names, preferences, decisions)
+2. Identify commitments and follow-ups
+3. Update contact profiles and dossiers
+4. Build pre-call briefings from past interactions
+5. Identify patterns and recurring themes
+
+Be precise and only extract explicitly stated facts, not inferred information.
+Work async in the background — no user-facing output.""",
+            "model": "claude-haiku-4-5-20251001",
+            "temperature": 0.3,
+            "max_tokens": 500,
+            "permitted_tools": ["memory_write", "contact_update"],
+            "requires_approval": False,
+            "should_run_on_schedule": True,
+            "schedule_cron": "*/30 * * * *",
             "is_system_provided": True
         },
         {
             "org_id": str(org_id),
-            "name": "Lead Qualification Agent",
-            "role": "lead_qualification",
-            "description": "Qualifies inbound leads and routes them appropriately",
-            "system_prompt": """You are a lead qualification agent. Your job is to:
-1. Score leads against qualification criteria
-2. Research lead background and intent
-3. Route leads to appropriate team members
-4. Log all decisions in the CRM
+            "name": "Research Agent",
+            "role": "research",
+            "description": "Researches market trends, competitor activity, local market data, and macro news. Feeds the morning brief",
+            "system_prompt": """You are the Research Agent. Your job is to:
+1. Research market trends and competitor activity (Streams 1–3: macro, local, competitors)
+2. Track relevant news, policy changes, and industry shifts
+3. Synthesize information into actionable insights for real estate
+4. Cite all sources clearly
+5. Flag opportunities and threats
 
-Be efficient and accurate.""",
-            "permitted_tools": ["crm_read", "web_search", "email_draft"],
-            "is_system_provided": True
+Use the Batch API for overnight research runs. Be fact-based and concise.""",
+            "model": "claude-sonnet-5",
+            "temperature": 0.6,
+            "max_tokens": 1500,
+            "permitted_tools": ["web_search", "news_fetch", "calendar_read"],
+            "requires_approval": False,
+            "should_run_on_schedule": True,
+            "schedule_cron": "0 22 * * *",
+            "is_system_provided": True,
+            "metadata": {
+                "batch_api": True,
+                "batch_cron": "0 22 * * *",
+                "note": "Runs overnight via Batch API for cost savings. Public data tasks can use budget tier."
+            }
+        },
+        {
+            "org_id": str(org_id),
+            "name": "Pipeline Agent (Lead Qualification)",
+            "role": "lead_qualification",
+            "description": "Qualifies inbound leads, sequences follow-ups, manages recruiting pipeline, and generates pre-call briefings",
+            "system_prompt": """You are the Pipeline Agent. Your job is to:
+1. Score and qualify inbound leads against Shawn's criteria
+2. Sequence follow-up actions intelligently
+3. Track recruiting pipeline opportunities
+4. Generate pre-call briefings from contact history and memory
+5. Log decisions in the CRM
+
+Be thorough but efficient. Read from CRM freely; write operations require approval.""",
+            "model": "claude-sonnet-5",
+            "temperature": 0.5,
+            "max_tokens": 1200,
+            "permitted_tools": ["crm_read", "crm_write", "web_search", "memory_recall"],
+            "requires_approval": True,
+            "is_system_provided": True,
+            "metadata": {
+                "note": "Structured work: lead scoring against defined criteria. Sonnet handles classification well."
+            }
         },
         {
             "org_id": str(org_id),
             "name": "Content Agent",
             "role": "content",
-            "description": "Generates blogs, social posts, newsletters, and reports",
-            "system_prompt": """You are a content creation agent. Your job is to:
-1. Write blog posts and articles
-2. Create social media content
+            "description": "Creates blogs, social posts, newsletters, and reports in Shawn's learned voice",
+            "system_prompt": """You are the Content Agent. Your job is to:
+1. Write blog posts and articles on real estate topics
+2. Create engaging social media content (LinkedIn, Instagram)
 3. Draft newsletters and client reports
-4. Maintain consistent brand voice
+4. Maintain consistent brand voice and style
+5. Always tailor content to Shawn's market and audience
 
-Write engaging, professional content.""",
-            "permitted_tools": ["document_create", "social_draft", "email_draft"],
+Draft content only — no publishing without approval. Study Shawn's past content for voice/style.""",
+            "model": "claude-sonnet-5",
+            "temperature": 0.7,
+            "max_tokens": 2000,
+            "permitted_tools": ["document_create", "content_draft"],
+            "requires_approval": True,
+            "is_system_provided": True,
+            "metadata": {
+                "fallback_to_opus_if": "voice_style_eval fails",
+                "note": "Sonnet writes well. Use Opus only if evals show brand voice mismatch."
+            }
+        },
+        {
+            "org_id": str(org_id),
+            "name": "Operational Heartbeat Agent",
+            "role": "operational_heartbeat",
+            "description": "Monitors business vital signs (response time, conversion rate, pipeline). Detects anomalies and suggests fixes",
+            "system_prompt": """You are the Heartbeat Agent. Your job is to:
+1. Monitor key metrics: System Integrity, Response Time, Pipeline Value, Anomalies
+2. Detect statistical anomalies (z-scores > 2.5, trend breaks)
+3. Calculate vital signs: response time, lead-to-close rate, deal velocity
+4. Narrate findings and suggest operational improvements
+5. Flag urgent issues for immediate attention
+
+Be data-driven. Use SQL and simple statistics; avoid speculative commentary.""",
+            "model": "claude-haiku-4-5-20251001",
+            "temperature": 0.3,
+            "max_tokens": 800,
+            "permitted_tools": ["crm_read", "analytics_read"],
+            "requires_approval": False,
+            "should_run_on_schedule": True,
+            "schedule_cron": "0 8 * * *",
             "is_system_provided": True
         },
         {
             "org_id": str(org_id),
             "name": "Communications Agent",
             "role": "communications",
-            "description": "Handles calls, emails, SMS, and scheduling",
-            "system_prompt": """You are a communications agent. Your job is to:
-1. Draft and send emails
-2. Manage calendar and scheduling
-3. Send SMS/WhatsApp messages
-4. Answer phone calls and qualify callers
+            "description": "Handles email, SMS, calls, scheduling, and concierge bookings. The only agent that can send",
+            "system_prompt": """You are the Communications Agent. Your job is to:
+1. Draft and send emails (always gated, requires approval)
+2. Schedule calendar events and manage availability
+3. Send SMS/WhatsApp messages (always gated)
+4. Answer inbound phone calls and qualify callers
+5. Book reservations and handle concierge requests
 
-Be professional and efficient.""",
-            "permitted_tools": ["email_send", "calendar_write", "sms_send", "call_answer"],
-            "is_system_provided": True
+Be professional and efficient. All send operations require explicit approval.
+On live calls, use fast inference; pre-call use full reasoning.""",
+            "model": "claude-sonnet-5",
+            "temperature": 0.5,
+            "max_tokens": 800,
+            "permitted_tools": ["email_draft", "email_send", "calendar_write", "sms_send", "call_answer"],
+            "requires_approval": True,
+            "is_system_provided": True,
+            "metadata": {
+                "model_for_drafts": "claude-sonnet-5",
+                "model_for_live_calls": "claude-haiku-4-5-20251001",
+                "note": "Drafts use Sonnet for quality. Live calls use Haiku for <500ms latency. Speed > quality on calls."
+            }
         },
         {
             "org_id": str(org_id),
-            "name": "Operational Heartbeat Agent",
-            "role": "operational_heartbeat",
-            "description": "Monitors business health and flags anomalies",
-            "system_prompt": """You are an operational heartbeat agent. Your job is to:
-1. Monitor key business metrics (response time, conversion rate, pipeline)
-2. Detect anomalies and trends
-3. Alert the user proactively when things go wrong
-4. Suggest operational improvements
+            "name": "Agent Builder",
+            "role": "agent_builder",
+            "description": "Converts requests like 'watch my competitors' listings' into new agent configurations (prompt, tools, schedule)",
+            "system_prompt": """You are the Agent Builder. Your job is to:
+1. Listen to user requests for new automated behaviors
+2. Convert them into agent configurations (prompt, tool allowlist, schedule)
+3. Define what data the agent reads and what it can change
+4. Never generate code — only configuration
+5. Restrict toolsets to minimum necessary
 
-Be objective and data-driven.""",
-            "permitted_tools": ["crm_read", "analytics_read", "alert_send"],
-            "is_system_provided": True
-        },
-        {
-            "org_id": str(org_id),
-            "name": "Concierge Agent",
-            "role": "concierge",
-            "description": "Personal assistant for restaurants, reminders, and admin",
-            "system_prompt": """You are a personal concierge agent. Your job is to:
-1. Research and book restaurants
-2. Remember client preferences and birthdays
-3. Handle personal admin tasks
-4. Proactively remind the user of important dates
-
-Be thoughtful and attentive to detail.""",
-            "permitted_tools": ["web_search", "calendar_write", "email_send"],
+Example: 'watch my competitors' listings' → New Research Agent with crm_read + web_search, runs daily at 8am.
+Always ask clarifying questions about frequency, scope, and approval gates.""",
+            "model": "claude-opus-5-5",
+            "temperature": 0.5,
+            "max_tokens": 1000,
+            "permitted_tools": ["agent_definition_write"],
+            "requires_approval": True,
             "is_system_provided": True
         }
     ]
@@ -283,4 +415,4 @@ Be thoughtful and attentive to detail.""",
     for agent_def in default_agents:
         supabase.table("agent").insert(agent_def).execute()
 
-    logger.info(f"Created {len(default_agents)} default agents for org {org_id}")
+    logger.info(f"Created {len(default_agents)} standard agents for org {org_id}")
