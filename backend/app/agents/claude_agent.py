@@ -1,9 +1,11 @@
 """Claude native agent with tool use loop."""
 import json
 import logging
+import uuid
 from typing import Optional
 from anthropic import AsyncAnthropic
-from app.config import settings, MODEL_TIERS
+from app.config import settings, MODEL_TIERS, GMAIL_ALLOWLIST
+from app.seeds.getty_group_data import GETTY_GROUP_CONTACTS
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +161,24 @@ TOOLS = [
 ]
 
 
+def _validate_gmail_recipient(recipient: str) -> tuple[bool, Optional[str]]:
+    """Validate if recipient is in CRM and on allowlist."""
+    # Find contact by email
+    contact = None
+    for c in GETTY_GROUP_CONTACTS:
+        if c.get("email", "").lower() == recipient.lower():
+            contact = c
+            break
+
+    if not contact:
+        return False, f"Recipient '{recipient}' not found in CRM"
+
+    if recipient not in GMAIL_ALLOWLIST:
+        return False, f"Recipient '{recipient}' is not on the allowed send list (security policy)"
+
+    return True, None
+
+
 async def execute_tool(tool_name: str, tool_input: dict) -> str:
     """Execute a tool and return result."""
     logger.info(f"[TOOL] Executing {tool_name} with input: {tool_input}")
@@ -184,12 +204,27 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
             })
 
         elif tool_name == "gmail_draft":
-            # Return the draft
+            # Validate recipient against CRM and allowlist
+            recipient = tool_input.get("to", "")
+            is_valid, error_msg = _validate_gmail_recipient(recipient)
+
+            if not is_valid:
+                # Guard rule failed: reject and explain why
+                return json.dumps({
+                    "status": "rejected",
+                    "error": error_msg,
+                    "reason": "Cannot send to this recipient - " + error_msg
+                })
+
+            # Valid recipient: create approval request
+            approval_id = str(uuid.uuid4())
             return json.dumps({
-                "status": "draft",
-                "to": tool_input.get("to"),
+                "status": "pending_approval",
+                "approval_id": approval_id,
+                "to": recipient,
                 "subject": tool_input.get("subject"),
                 "body": tool_input.get("body"),
+                "action": "gmail_send",
                 "requires_approval": True
             })
 

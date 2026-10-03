@@ -79,10 +79,18 @@ GETTY_GROUP_CONTACTS = [
         "title": "Real Estate Agent (Prospect)",
         "company": "Royal LePage",
         "city": "Calgary, AB",
+        "email": "alex.thompson@test.recruitment.box",  # Allowlisted test inbox
+        "phone": "+1-403-555-0201",
         "last_contact": "2026-09-15",
         "days_silent": 13,
         "status": "cold_recruit",
-        "context": "5 years experience, top producer in brokerage. Mentioned burnout with current mgmt.",
+        "production_stats": {
+            "years_experience": 5,
+            "closings_ytd": 34,
+            "avg_sale_price": "$680k",
+            "volume_ytd": "$23.1M"
+        },
+        "context": "Top producer at Royal LePage. 5 years exp, 34 closings YTD. Mentioned burnout with current mgmt.",
         "personalization": "Growing practice, 40+ leads/year, looking for support team",
     },
     {
@@ -91,11 +99,19 @@ GETTY_GROUP_CONTACTS = [
         "title": "Real Estate Agent (Prospect)",
         "company": "Sotheby's International",
         "city": "Calgary, AB",
+        "email": "priya.patel@test.recruitment.box",  # Allowlisted test inbox
+        "phone": "+1-403-555-0202",
         "last_contact": "2026-09-18",
         "days_silent": 10,
         "status": "cold_recruit",
-        "context": "Luxury specialist, 8 years experience. Strong Instagram presence.",
-        "personalization": "Luxury market focus, looking to expand geographic territory",
+        "production_stats": {
+            "years_experience": 8,
+            "closings_ytd": 28,
+            "avg_sale_price": "$1.2M",
+            "volume_ytd": "$33.6M"
+        },
+        "context": "Luxury market specialist at Sotheby's. 8 years exp, 28 luxury closings YTD. Strong Instagram presence.",
+        "personalization": "Luxury market focus, strong personal brand, looking to expand geographic territory",
     },
     {
         "id": "cold_recruit_david_ng",
@@ -103,11 +119,19 @@ GETTY_GROUP_CONTACTS = [
         "title": "Real Estate Agent (Prospect)",
         "company": "Engel & Völkers",
         "city": "Calgary, AB",
+        "email": "david.ng@test.recruitment.box",  # Allowlisted test inbox
+        "phone": "+1-403-555-0203",
         "last_contact": "2026-09-20",
         "days_silent": 8,
         "status": "cold_recruit",
-        "context": "Commercial/Industrial focus, 6 years experience. Growing market share.",
-        "personalization": "Commercial expertise, scale into residential market",
+        "production_stats": {
+            "years_experience": 6,
+            "closings_ytd": 41,
+            "avg_sale_price": "$850k",
+            "volume_ytd": "$34.85M"
+        },
+        "context": "Commercial/Industrial focus at Engel & Völkers. 6 years exp, 41 closings YTD. Growing market share.",
+        "personalization": "Commercial expertise, scaling into residential market, top producer",
     },
 ]
 

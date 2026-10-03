@@ -8,6 +8,15 @@ MODEL_TIERS = {
     "deep": "claude-opus-5-5"
 }
 
+# Allowlisted email addresses for approval testing (blocks sends to non-allowlisted addresses)
+GMAIL_ALLOWLIST = {
+    "alex.thompson@test.recruitment.box",
+    "priya.patel@test.recruitment.box",
+    "david.ng@test.recruitment.box",
+    "shawn@getty.group",
+    "test@example.com"
+}
+
 class Settings(BaseSettings):
     """Application settings from environment variables."""
 

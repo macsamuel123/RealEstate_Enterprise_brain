@@ -1,7 +1,8 @@
 """Voice API endpoints - REST + WebSocket for voice interaction."""
 from fastapi import APIRouter, UploadFile, File, WebSocket, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime
 import logging
 import os
 from typing import Optional
@@ -11,7 +12,6 @@ from app.voice.orchestrator import VoiceOrchestrator
 from app.voice.stt import AudioFormat
 from app.agents.claude_agent import chat as claude_chat
 from app.config import settings
-from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -302,8 +302,9 @@ async def transcribe(
         raise HTTPException(500, str(e))
 
 
-# In-memory conversation store (for demo; move to Supabase later)
+# In-memory stores (for demo; move to Supabase later)
 _conversations = {}
+_approvals = {}  # approval_id -> {id, action, to, subject, body, status, created_at}
 
 
 @router.post("/agent")
@@ -342,7 +343,23 @@ async def agent(req: AgentRequest):
             "conversation_id": conv_id
         }
 
+        # If there's a pending approval, store it
         if pending_approval:
+            approval_id = pending_approval.get("approval_id")
+            if approval_id:
+                from datetime import datetime
+                _approvals[approval_id] = {
+                    "id": approval_id,
+                    "action": pending_approval.get("action"),
+                    "to": pending_approval.get("to"),
+                    "subject": pending_approval.get("subject"),
+                    "body": pending_approval.get("body"),
+                    "status": "pending",
+                    "created_at": datetime.utcnow().isoformat(),
+                    "conversation_id": conv_id
+                }
+                logger.info(f"[APPROVAL] Stored approval {approval_id}")
+
             result["pending_approval"] = pending_approval
 
         return result
@@ -399,4 +416,81 @@ async def text_to_speech(
         raise HTTPException(500, str(e))
 
 
-import os
+@router.get("/approvals")
+async def list_approvals():
+    """List all pending approvals."""
+    try:
+        # Return only pending approvals
+        pending = [a for a in _approvals.values() if a.get("status") == "pending"]
+        return {"approvals": pending}
+    except Exception as e:
+        logger.error(f"Failed to list approvals: {e}")
+        raise HTTPException(500, str(e))
+
+
+@router.post("/approvals/{approval_id}/approve")
+async def approve_action(approval_id: str):
+    """Approve and execute an action."""
+    try:
+        if approval_id not in _approvals:
+            raise HTTPException(404, f"Approval {approval_id} not found")
+
+        approval = _approvals[approval_id]
+
+        if approval.get("status") != "pending":
+            raise HTTPException(400, f"Approval {approval_id} is already {approval['status']}")
+
+        action = approval.get("action")
+
+        if action == "gmail_send":
+            # Execute the actual send
+            logger.info(f"[APPROVAL] Executing gmail_send for {approval['to']}")
+
+            # Mock implementation: in real app, would call Gmail API
+            result = {
+                "message_id": f"msg_{uuid4()}",
+                "to": approval["to"],
+                "subject": approval["subject"],
+                "sent_at": str(datetime.utcnow().isoformat())
+            }
+
+            # Update approval status
+            approval["status"] = "approved"
+            approval["executed_at"] = result["sent_at"]
+
+            logger.info(f"[APPROVAL] Approved and executed: {approval_id}")
+            return {"status": "approved", "result": result}
+        else:
+            raise HTTPException(400, f"Unknown action: {action}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to approve action: {e}")
+        raise HTTPException(500, str(e))
+
+
+@router.post("/approvals/{approval_id}/deny")
+async def deny_action(approval_id: str):
+    """Deny an approval request."""
+    try:
+        if approval_id not in _approvals:
+            raise HTTPException(404, f"Approval {approval_id} not found")
+
+        approval = _approvals[approval_id]
+
+        if approval.get("status") != "pending":
+            raise HTTPException(400, f"Approval {approval_id} is already {approval['status']}")
+
+        # Update approval status
+        approval["status"] = "denied"
+        approval["denied_at"] = str(datetime.utcnow().isoformat())
+
+        logger.info(f"[APPROVAL] Denied: {approval_id}")
+        return {"status": "denied", "approval_id": approval_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to deny action: {e}")
+        raise HTTPException(500, str(e))
