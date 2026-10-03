@@ -4,12 +4,14 @@ from fastapi.responses import StreamingResponse
 from uuid import UUID
 import logging
 import os
+from typing import Optional
 from pydantic import BaseModel
 
 from app.voice.orchestrator import VoiceOrchestrator
 from app.voice.stt import AudioFormat
-from app.agents.orchestrator import AgentOrchestrator
+from app.agents.claude_agent import chat as claude_chat
 from app.config import settings
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/api", tags=["voice", "agent"])
 
 class AgentRequest(BaseModel):
     question: str
+    conversation_id: Optional[str] = None
 
 
 class TTSRequest(BaseModel):
@@ -299,38 +302,53 @@ async def transcribe(
         raise HTTPException(500, str(e))
 
 
+# In-memory conversation store (for demo; move to Supabase later)
+_conversations = {}
+
+
 @router.post("/agent")
 async def agent(req: AgentRequest):
-    """Process question through agent orchestrator."""
+    """Process question through Claude agent."""
     try:
-        logger.info(f"[DEBUG] Received question: '{req.question}'")
+        logger.info(f"[AGENT] Question: '{req.question}'")
 
         if not req.question.strip():
             raise HTTPException(400, "Question cannot be empty")
 
-        # For dev: use mock org/user IDs
         org_id = "org_getty_group"
         user_id = "user_shawn_getty"
-        logger.info(f"[DEBUG] Using org_id={org_id}, user_id={user_id}")
 
-        # Route through orchestrator
-        orchestrator = AgentOrchestrator(org_id=org_id, user_id=user_id)
-        logger.info(f"[DEBUG] Calling orchestrator.dispatch_to_agent with message: {req.question}")
+        # Get or create conversation
+        conv_id = req.conversation_id or str(uuid4())
+        history = _conversations.get(conv_id, [])
 
-        response = await orchestrator.dispatch_to_agent(
-            event_type="user_message",
-            event_data={"message": req.question}
+        logger.info(f"[AGENT] Using conversation_id={conv_id}, history length={len(history)}")
+
+        # Call Claude agent
+        response_text, updated_history, pending_approval = await claude_chat(
+            user_message=req.question,
+            conversation_history=history,
+            org_id=org_id,
+            user_id=user_id
         )
 
-        logger.info(f"[DEBUG] Orchestrator response: {response}")
+        # Store updated history
+        _conversations[conv_id] = updated_history
 
-        agent_response = response.get("response", "I'm not sure how to help with that.")
-        logger.info(f"[DEBUG] Final agent response: '{agent_response}'")
+        logger.info(f"[AGENT] Response: '{response_text}'")
 
-        return {"response": agent_response}
+        result = {
+            "response": response_text,
+            "conversation_id": conv_id
+        }
+
+        if pending_approval:
+            result["pending_approval"] = pending_approval
+
+        return result
 
     except Exception as e:
-        logger.error(f"[ERROR] Agent error: {e}", exc_info=True)
+        logger.error(f"[AGENT ERROR] {e}", exc_info=True)
         raise HTTPException(500, str(e))
 
 
