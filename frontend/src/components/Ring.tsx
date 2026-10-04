@@ -33,6 +33,8 @@ export const Ring = ({ state, onClick, volumeLevel = 0 }: RingProps) => {
         drawIdleRing(ctx, centerX, centerY, baseRadius);
       } else if (state === 'listening') {
         drawListeningRing(ctx, centerX, centerY, baseRadius, timeRef.current, volumeLevel);
+      } else if (state === 'thinking') {
+        drawThinkingRing(ctx, centerX, centerY, baseRadius, timeRef.current);
       } else if (state === 'speaking') {
         drawSpeakingRing(ctx, centerX, centerY, baseRadius, timeRef.current);
       }
@@ -121,6 +123,43 @@ function drawListeningRing(
   ctx.fillStyle = `rgba(0, 212, 255, ${normalizedVolume * 0.15})`;
   ctx.beginPath();
   ctx.arc(centerX, centerY, ringRadius - 15, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawThinkingRing(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  time: number
+) {
+  // Rotating dots for thinking state
+  const dotCount = 3;
+  const rotation = time * 0.05;
+
+  ctx.strokeStyle = 'rgba(0, 212, 255, 0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Rotating dots
+  for (let i = 0; i < dotCount; i++) {
+    const angle = (i / dotCount) * Math.PI * 2 + rotation;
+    const dotX = centerX + Math.cos(angle) * (radius + 20);
+    const dotY = centerY + Math.sin(angle) * (radius + 20);
+
+    ctx.fillStyle = `rgba(0, 212, 255, ${0.8 - (i / dotCount) * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pulsing inner circle
+  const pulse = Math.sin(time * 0.1) * 0.3 + 0.7;
+  ctx.fillStyle = `rgba(0, 212, 255, ${pulse * 0.15})`;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radius - 20, 0, Math.PI * 2);
   ctx.fill();
 }
 

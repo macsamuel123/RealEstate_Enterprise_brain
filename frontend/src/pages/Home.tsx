@@ -5,6 +5,7 @@ import { RingState, Brief, BusinessMetrics } from '@/types';
 import { getBriefs, getMetrics } from '@/services/api';
 import { speak } from '@/services/tts';
 import { startRecording, stopRecordingAndTranscribe, setRecordingStateCallback } from '@/services/stt';
+import { useConversationMode } from '@/hooks/useConversationMode';
 import './Home.css';
 
 export const Home = () => {
@@ -15,9 +16,29 @@ export const Home = () => {
   const [lastQuestion, setLastQuestion] = useState<string>('');
   const [transcript, setTranscript] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [conversationId, setConversationId] = useState<string>('');
+  const [conversationId, setConversationId] = useState<string>(() => crypto.randomUUID());
   const [pendingApproval, setPendingApproval] = useState<any>(null);
   const [volumeLevel, setVolumeLevel] = useState<number>(0);
+  const [conversationMode, setConversationMode] = useState(false);
+  const [singleTurnMode, setSingleTurnMode] = useState(true);
+
+  const convMode = useConversationMode({
+    conversationId,
+    onStateChange: (state) => {
+      if (conversationMode) {
+        setRingState(state);
+      }
+    },
+    onVolumeChange: setVolumeLevel,
+    onTranscript: (text) => {
+      setLastQuestion(text);
+      setTranscript(text);
+    },
+    onResponse: (text) => {
+      setTranscript(text);
+    },
+    onError: setError,
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -36,42 +57,57 @@ export const Home = () => {
   }, []);
 
   const handleRingClick = async () => {
-    if (ringState === 'idle') {
-      // Start listening
-      setRingState('listening');
-      setError('');
-      setPendingApproval(null);
-      setVolumeLevel(0);
-
-      try {
-        // Set up volume monitoring
-        setRecordingStateCallback((state) => {
-          setVolumeLevel(state.rmsLevel);
-        });
-
-        await startRecording();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Microphone access denied');
-        setRingState('idle');
-      }
-    } else if (ringState === 'listening') {
-      // Stop listening and process
-      try {
-        const question = await stopRecordingAndTranscribe();
-        setLastQuestion(question);
+    if (conversationMode) {
+      // In conversation mode: ring click exits
+      await convMode.stop();
+      setConversationMode(false);
+    } else if (singleTurnMode) {
+      // Single-turn mode
+      if (ringState === 'idle') {
+        // Start listening
+        setRingState('listening');
+        setError('');
+        setPendingApproval(null);
         setVolumeLevel(0);
-        setRingState('speaking');
-        await handleQuestion(question);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error processing audio');
+
+        try {
+          // Set up volume monitoring
+          setRecordingStateCallback((state) => {
+            setVolumeLevel(state.rmsLevel);
+          });
+
+          await startRecording();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Microphone access denied');
+          setRingState('idle');
+        }
+      } else if (ringState === 'listening') {
+        // Stop listening and process
+        try {
+          const question = await stopRecordingAndTranscribe();
+          setLastQuestion(question);
+          setVolumeLevel(0);
+          setRingState('speaking');
+          await handleQuestion(question);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Error processing audio');
+          setRingState('idle');
+          setVolumeLevel(0);
+        }
+      } else if (ringState === 'speaking') {
+        // Stop speaking
         setRingState('idle');
         setVolumeLevel(0);
       }
-    } else if (ringState === 'speaking') {
-      // Stop speaking
-      setRingState('idle');
-      setVolumeLevel(0);
     }
+  };
+
+  const startConversationMode = async () => {
+    setConversationMode(true);
+    setSingleTurnMode(false);
+    setError('');
+    setPendingApproval(null);
+    await convMode.start();
   };
 
   const handleQuestion = async (question: string) => {
@@ -182,10 +218,27 @@ export const Home = () => {
         <div className="ring-section">
           <Ring state={ringState} onClick={handleRingClick} volumeLevel={volumeLevel} />
           <p className="ring-hint">
-            {ringState === 'idle' && 'Click ring to ask a question'}
-            {ringState === 'listening' && 'Listening... speak your question'}
-            {ringState === 'speaking' && 'Agent is responding...'}
+            {conversationMode && ringState === 'idle' && 'Starting conversation mode...'}
+            {conversationMode && ringState === 'listening' && 'Listening... speak your question'}
+            {conversationMode && ringState === 'thinking' && 'Thinking...'}
+            {conversationMode && ringState === 'speaking' && 'Agent is speaking...'}
+            {!conversationMode && ringState === 'idle' && 'Click ring to ask a question'}
+            {!conversationMode && ringState === 'listening' && 'Listening... speak your question'}
+            {!conversationMode && ringState === 'speaking' && 'Agent is responding...'}
           </p>
+          {conversationMode && ringState === 'listening' && (
+            <div className="listening-indicator">🎤 Listening</div>
+          )}
+          {!conversationMode && !singleTurnMode && (
+            <button onClick={startConversationMode} className="btn-start-conversation">
+              Start Conversation
+            </button>
+          )}
+          {singleTurnMode && conversationId && (
+            <p style={{ fontSize: '11px', color: '#6b7b8d', marginTop: '8px' }}>
+              Conversation ID: {conversationId.slice(0, 8)}...
+            </p>
+          )}
         </div>
 
         <VoiceFeedback

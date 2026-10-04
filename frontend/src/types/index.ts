@@ -1,4 +1,4 @@
-export type RingState = 'idle' | 'listening' | 'speaking';
+export type RingState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 export interface Brief {
   id: string;

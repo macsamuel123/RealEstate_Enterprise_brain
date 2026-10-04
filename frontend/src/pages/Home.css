@@ -270,3 +270,46 @@
   background: #c0392b;
   box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
 }
+
+.listening-indicator {
+  font-size: 12px;
+  color: #00d4ff;
+  font-weight: 600;
+  margin-top: 12px;
+  animation: pulse-blink 1s infinite;
+}
+
+@keyframes pulse-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.5;
+  }
+}
+
+.btn-start-conversation {
+  margin-top: 16px;
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #00d4ff, #0099cc);
+  border: none;
+  border-radius: 8px;
+  color: #0a0a1a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+}
+
+.btn-start-conversation:hover {
+  background: linear-gradient(135deg, #00e6ff, #00aadd);
+  box-shadow: 0 6px 16px rgba(0, 212, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-start-conversation:active {
+  transform: translateY(0);
+}

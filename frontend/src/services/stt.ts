@@ -41,7 +41,13 @@ export async function startRecording(
   onVolumeChange?: (rms: number) => void
 ): Promise<void> {
   try {
-    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
     currentRecorder = new MediaRecorder(currentStream);
 
     // Set up Web Audio for VAD
