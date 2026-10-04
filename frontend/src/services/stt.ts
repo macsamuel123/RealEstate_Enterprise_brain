@@ -1,24 +1,30 @@
-/**
- * Speech-to-text via Whisper (backend proxy)
- */
-export async function recordAndTranscribe(): Promise<string> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const mediaRecorder = new MediaRecorder(stream);
-  const chunks: BlobPart[] = [];
+let currentRecorder: MediaRecorder | null = null;
+let currentStream: MediaStream | null = null;
 
-  mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+export async function startRecording(): Promise<void> {
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    currentRecorder = new MediaRecorder(currentStream);
+    currentRecorder.start();
+  } catch (error) {
+    throw new Error(`Microphone access denied: ${error}`);
+  }
+}
 
-  mediaRecorder.start();
+export async function stopRecordingAndTranscribe(): Promise<string> {
+  if (!currentRecorder || !currentStream) {
+    throw new Error('No recording in progress');
+  }
 
-  // Record for up to 30 seconds or until user stops
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      mediaRecorder.stop();
-    }, 30000);
+    const chunks: BlobPart[] = [];
 
-    mediaRecorder.onstop = async () => {
-      clearTimeout(timeout);
-      stream.getTracks().forEach((track) => track.stop());
+    currentRecorder!.ondataavailable = (e) => chunks.push(e.data);
+
+    currentRecorder!.onstop = async () => {
+      currentStream!.getTracks().forEach((track) => track.stop());
+      currentRecorder = null;
+      currentStream = null;
 
       const blob = new Blob(chunks, { type: 'audio/webm' });
       const formData = new FormData();
@@ -35,12 +41,28 @@ export async function recordAndTranscribe(): Promise<string> {
         }
 
         const data = await res.json();
-        resolve(data.text);
+        resolve(data.text || '');
       } catch (error) {
         reject(error);
       }
     };
 
-    mediaRecorder.onerror = reject;
+    currentRecorder!.onerror = (event) => {
+      currentStream?.getTracks().forEach((track) => track.stop());
+      currentRecorder = null;
+      currentStream = null;
+      reject(new Error(`Recording error: ${event.error}`));
+    };
+
+    currentRecorder!.stop();
+  });
+}
+
+export async function recordAndTranscribe(): Promise<string> {
+  await startRecording();
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      stopRecordingAndTranscribe().then(resolve);
+    }, 3000); // Auto-stop after 3 seconds for testing
   });
 }

@@ -4,7 +4,7 @@ import { VoiceFeedback } from '@/components/VoiceFeedback';
 import { RingState, Brief, BusinessMetrics } from '@/types';
 import { getBriefs, getMetrics } from '@/services/api';
 import { speak } from '@/services/tts';
-import { recordAndTranscribe } from '@/services/stt';
+import { startRecording, stopRecordingAndTranscribe } from '@/services/stt';
 import './Home.css';
 
 export const Home = () => {
@@ -42,14 +42,37 @@ export const Home = () => {
       setPendingApproval(null);
 
       try {
-        const question = await recordAndTranscribe();
-        setLastQuestion(question);
+        await startRecording();
 
-        // Send to agent for processing
+        // Auto-stop after 5 seconds (user can click to stop sooner)
+        const autoStopTimeout = setTimeout(async () => {
+          try {
+            const question = await stopRecordingAndTranscribe();
+            setLastQuestion(question);
+            setRingState('speaking');
+            await handleQuestion(question);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Error processing audio');
+            setRingState('idle');
+          }
+        }, 5000);
+
+        // Store timeout so we can cancel if user clicks again
+        (window as any).__recordingTimeout = autoStopTimeout;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Microphone access denied');
+        setRingState('idle');
+      }
+    } else if (ringState === 'listening') {
+      // Stop listening and process
+      clearTimeout((window as any).__recordingTimeout);
+      try {
+        const question = await stopRecordingAndTranscribe();
+        setLastQuestion(question);
         setRingState('speaking');
         await handleQuestion(question);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error during processing');
+        setError(err instanceof Error ? err.message : 'Error processing audio');
         setRingState('idle');
       }
     } else if (ringState === 'speaking') {
