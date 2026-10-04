@@ -5,9 +5,10 @@ import './Ring.css';
 interface RingProps {
   state: RingState;
   onClick?: () => void;
+  volumeLevel?: number; // 0-1 for voice volume visualization in listening state
 }
 
-export const Ring = ({ state, onClick }: RingProps) => {
+export const Ring = ({ state, onClick, volumeLevel = 0 }: RingProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef<number>(0);
@@ -31,7 +32,7 @@ export const Ring = ({ state, onClick }: RingProps) => {
       if (state === 'idle') {
         drawIdleRing(ctx, centerX, centerY, baseRadius);
       } else if (state === 'listening') {
-        drawListeningRing(ctx, centerX, centerY, baseRadius, timeRef.current);
+        drawListeningRing(ctx, centerX, centerY, baseRadius, timeRef.current, volumeLevel);
       } else if (state === 'speaking') {
         drawSpeakingRing(ctx, centerX, centerY, baseRadius, timeRef.current);
       }
@@ -52,7 +53,7 @@ export const Ring = ({ state, onClick }: RingProps) => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [state]);
+  }, [state, volumeLevel]);
 
   return (
     <div className={`ring-container ring-${state}`} onClick={onClick}>
@@ -88,27 +89,39 @@ function drawListeningRing(
   centerX: number,
   centerY: number,
   radius: number,
-  time: number
+  time: number,
+  volumeLevel: number = 0
 ) {
-  // Pulsing listening ring
-  const pulse = Math.sin(time * 0.05) * 0.3 + 0.7;
+  // Normalize volume to 0-1 range (RMS can go higher)
+  const normalizedVolume = Math.min(volumeLevel * 50, 1);
+
+  // Pulsing listening ring that expands with voice volume
+  const basePulse = Math.sin(time * 0.05) * 0.2 + 0.6;
+  const pulse = basePulse + normalizedVolume * 0.4;
+  const ringRadius = radius + normalizedVolume * 8; // Expand ring with volume
 
   ctx.strokeStyle = `rgba(0, 212, 255, ${pulse * 0.8})`;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Animated outer rings
+  // Animated outer rings that pulse with voice
   for (let i = 1; i <= 3; i++) {
-    const waveRadius = radius + i * 15;
-    const alpha = Math.max(0, 0.4 - (time % 20) / 50);
+    const waveRadius = ringRadius + i * 15;
+    const alpha = Math.max(0, 0.4 - (time % 20) / 50) * (1 - normalizedVolume * 0.5);
     ctx.strokeStyle = `rgba(0, 212, 255, ${alpha})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(centerX, centerY, waveRadius, 0, Math.PI * 2);
     ctx.stroke();
   }
+
+  // Inner glow that brightens with speech
+  ctx.fillStyle = `rgba(0, 212, 255, ${normalizedVolume * 0.15})`;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, ringRadius - 15, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawSpeakingRing(

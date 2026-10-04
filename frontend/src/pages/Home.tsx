@@ -4,7 +4,7 @@ import { VoiceFeedback } from '@/components/VoiceFeedback';
 import { RingState, Brief, BusinessMetrics } from '@/types';
 import { getBriefs, getMetrics } from '@/services/api';
 import { speak } from '@/services/tts';
-import { startRecording, stopRecordingAndTranscribe } from '@/services/stt';
+import { startRecording, stopRecordingAndTranscribe, setRecordingStateCallback } from '@/services/stt';
 import './Home.css';
 
 export const Home = () => {
@@ -17,6 +17,7 @@ export const Home = () => {
   const [error, setError] = useState<string>('');
   const [conversationId, setConversationId] = useState<string>('');
   const [pendingApproval, setPendingApproval] = useState<any>(null);
+  const [volumeLevel, setVolumeLevel] = useState<number>(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -40,44 +41,36 @@ export const Home = () => {
       setRingState('listening');
       setError('');
       setPendingApproval(null);
+      setVolumeLevel(0);
 
       try {
+        // Set up volume monitoring
+        setRecordingStateCallback((state) => {
+          setVolumeLevel(state.rmsLevel);
+        });
+
         await startRecording();
-
-        // Auto-stop after 5 seconds (user can click to stop sooner)
-        const autoStopTimeout = setTimeout(async () => {
-          try {
-            const question = await stopRecordingAndTranscribe();
-            setLastQuestion(question);
-            setRingState('speaking');
-            await handleQuestion(question);
-          } catch (err) {
-            setError(err instanceof Error ? err.message : 'Error processing audio');
-            setRingState('idle');
-          }
-        }, 5000);
-
-        // Store timeout so we can cancel if user clicks again
-        (window as any).__recordingTimeout = autoStopTimeout;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Microphone access denied');
         setRingState('idle');
       }
     } else if (ringState === 'listening') {
       // Stop listening and process
-      clearTimeout((window as any).__recordingTimeout);
       try {
         const question = await stopRecordingAndTranscribe();
         setLastQuestion(question);
+        setVolumeLevel(0);
         setRingState('speaking');
         await handleQuestion(question);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error processing audio');
         setRingState('idle');
+        setVolumeLevel(0);
       }
     } else if (ringState === 'speaking') {
       // Stop speaking
       setRingState('idle');
+      setVolumeLevel(0);
     }
   };
 
@@ -187,7 +180,7 @@ export const Home = () => {
 
       <div className="home-main">
         <div className="ring-section">
-          <Ring state={ringState} onClick={handleRingClick} />
+          <Ring state={ringState} onClick={handleRingClick} volumeLevel={volumeLevel} />
           <p className="ring-hint">
             {ringState === 'idle' && 'Click ring to ask a question'}
             {ringState === 'listening' && 'Listening... speak your question'}
