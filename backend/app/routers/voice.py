@@ -311,9 +311,14 @@ _approvals = {}  # approval_id -> {id, action, to, subject, body, status, create
 async def agent(req: AgentRequest):
     """Process question through Claude agent."""
     try:
+        logger.info(f"\n{'='*60}")
+        logger.info(f"[AGENT] NEW REQUEST")
         logger.info(f"[AGENT] Question: '{req.question}'")
+        logger.info(f"[AGENT] Length: {len(req.question)} chars")
+        logger.info(f"[AGENT] Conversation ID: {req.conversation_id}")
 
         if not req.question.strip():
+            logger.error("[AGENT] Question is empty!")
             raise HTTPException(400, "Question cannot be empty")
 
         org_id = "org_getty_group"
@@ -323,9 +328,11 @@ async def agent(req: AgentRequest):
         conv_id = req.conversation_id or str(uuid4())
         history = _conversations.get(conv_id, [])
 
-        logger.info(f"[AGENT] Using conversation_id={conv_id}, history length={len(history)}")
+        logger.info(f"[AGENT] Using conversation_id={conv_id}")
+        logger.info(f"[AGENT] History length: {len(history)} messages")
 
         # Call Claude agent
+        logger.info(f"[AGENT] Calling DeepSeek agent...")
         response_text, updated_history, pending_approval = await claude_chat(
             user_message=req.question,
             conversation_history=history,
@@ -333,10 +340,13 @@ async def agent(req: AgentRequest):
             user_id=user_id
         )
 
+        logger.info(f"[AGENT] Response received: '{response_text}'")
+        logger.info(f"[AGENT] Response length: {len(response_text)} chars")
+        logger.info(f"[AGENT] Has pending approval: {pending_approval is not None}")
+
         # Store updated history
         _conversations[conv_id] = updated_history
-
-        logger.info(f"[AGENT] Response: '{response_text}'")
+        logger.info(f"[AGENT] History updated. New length: {len(updated_history)} messages")
 
         result = {
             "response": response_text,

@@ -189,9 +189,37 @@ export function useConversationMode(options: UseConversationModeOptions) {
 
   const start = useCallback(async () => {
     setIsActive(true);
-    updateState('listening');
+    updateState('thinking');
+
+    try {
+      // Send greeting to agent
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: "Say a brief friendly greeting to get started",
+          conversation_id: options.conversationId,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const greeting = data.response || "Hey, how can I help you today?";
+
+        // Speak the greeting
+        try {
+          await speak(greeting);
+        } catch {
+          console.log('TTS not available for greeting');
+        }
+      }
+    } catch (err) {
+      console.error('Greeting error:', err);
+    }
+
+    // Start listening for user input
     await startListeningLoop();
-  }, [updateState, startListeningLoop]);
+  }, [updateState, startListeningLoop, options.conversationId]);
 
   const stop = useCallback(async () => {
     if (noSpeechTimeoutRef.current) {

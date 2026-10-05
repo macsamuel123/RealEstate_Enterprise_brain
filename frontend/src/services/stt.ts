@@ -93,16 +93,24 @@ export async function startRecording(
 
 export async function stopRecordingAndTranscribe(): Promise<string> {
   if (!currentRecorder || !currentStream) {
+    console.error('[STT] No recording in progress');
     throw new Error('No recording in progress');
   }
+
+  console.log('[STT] Stopping recording...');
 
   return new Promise((resolve, reject) => {
     const chunks: BlobPart[] = [];
     let hasSpeech = false;
 
-    currentRecorder!.ondataavailable = (e) => chunks.push(e.data);
+    currentRecorder!.ondataavailable = (e) => {
+      console.log('[STT] Data chunk:', e.data.size, 'bytes');
+      chunks.push(e.data);
+    };
 
     currentRecorder!.onstop = async () => {
+      console.log('[STT] Recording stopped. Total chunks:', chunks.length, 'Speech detected:', hasSpeech);
+
       // Clean up
       const interval = (currentRecorder as any).__analysisInterval;
       if (interval) clearInterval(interval);
@@ -117,11 +125,13 @@ export async function stopRecordingAndTranscribe(): Promise<string> {
 
       // If no speech was detected, don't send to API
       if (!hasSpeech) {
+        console.warn('[STT] No speech detected, rejecting');
         reject(new Error('No speech detected'));
         return;
       }
 
       const blob = new Blob(chunks, { type: 'audio/webm' });
+      console.log('[STT] Blob created:', blob.size, 'bytes');
       const formData = new FormData();
       formData.append('audio', blob, 'audio.webm');
 
